@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <string>
 #include <thread>
+#include <vector>
 using namespace std;
 
 void usage() {
@@ -95,7 +96,8 @@ int main(int argc, char *argv[]) {
 		perror("listen failed");
 		return -1;
 	}
-
+	
+	vector<thread> T;
 	while (true) {
 		struct sockaddr_in addr;
 		socklen_t clientlen = sizeof(sockaddr);
@@ -103,9 +105,9 @@ int main(int argc, char *argv[]) {
 		if (browserfd < 0) {
 			perror("ERROR on accept");
 			close(browserfd);
-			continue;
+			break;
 		}
-		printf("[+] Connected from Browser\n");
+		printf("[+] Connected from Web Browser\n");
 		
 		const static int BUFSIZE = 4096;
 		char buf[BUFSIZE];
@@ -145,12 +147,12 @@ int main(int argc, char *argv[]) {
 
 		res = connect(serverfd, reinterpret_cast<struct sockaddr*>(&addr2), sizeof(struct sockaddr));
 		if (res == -1) {
-			perror("connect failed");
+			printf("[-] Connect Failed");
 			close(browserfd);
 			close(serverfd);
 			continue;
 		}
-		printf("[+] Connected to Server\n");
+		printf("[+] Connected to Web Server\n");
 
 		ssize_t sent = send(serverfd, buf, strlen(buf), 0);
 		if (sent == 0) {
@@ -160,8 +162,8 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 
-		thread Thread1(Relay, browserfd, serverfd);
-		thread Thread2(Relay, serverfd, browserfd);
+		T.push_back(thread(Relay, serverfd, browserfd));
+		T.push_back(thread(Relay, browserfd, serverfd));
 	}
 
 	close(sockfd);
